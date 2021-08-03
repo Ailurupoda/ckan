@@ -180,7 +180,8 @@ class AdminController(base.BaseController):
                         # gets moved down to the next revision
                         model.repo.purge_revision(revision, leave_record=False)
                     except Exception, inst:
-                        msg = _('Problem purging revision %s: %s') % (id, inst)
+                        # msg = _('Problem purging revision %s: %s') % (id, inst)
+                        msg = _('Problem purging revision')
                         msgs.append(msg)
                 h.flash_success(_('Purge complete'))
             else:

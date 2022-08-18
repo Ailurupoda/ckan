@@ -1555,6 +1555,34 @@ def tag_show_rest(context, data_dict):
 
     return tag_dict
 
+def get_organizations(organizations):
+    res = []
+    for org in organizations:
+        organization = model.Group.get(org)
+        if organization:
+            res.append(organization)
+    return res
+
+
+def is_query_in_package(query, q_lower, organization=None):
+    res = []
+    for package in query:
+        if organization and organization.is_organization:
+            if not package.is_in_group(organization):
+                continue
+        if package.name.startswith(q_lower):
+            match_field = 'name'
+            match_displayed = package.name
+        else:
+            match_field = 'title'
+            match_displayed = '%s (%s)' % (package.title, package.name)
+        result_dict = {
+            'name': package.name,
+            'title': package.title,
+            'match_field': match_field,
+            'match_displayed': match_displayed}
+        res.append(result_dict)
+    return res
 
 @logic.validate(logic.schema.default_autocomplete_schema)
 def package_autocomplete(context, data_dict):
@@ -1581,8 +1609,8 @@ def package_autocomplete(context, data_dict):
 
     like_q = u"%s%%" % q
 
-    orga = data_dict.get('organization', '')
-    organization = model.Group.get(orga)
+    orgas = data_dict.get('organization', '').split(',')
+    organizations = get_organizations(orgas)
 
     query = model.Session.query(model.Package)
     query = query.filter(model.Package.state == 'active')
@@ -1593,22 +1621,10 @@ def package_autocomplete(context, data_dict):
 
     q_lower = q.lower()
     pkg_list = []
-    for package in query:
-        if organization and organization.is_organization:
-            if not package.is_in_group(organization):
-                continue
-        if package.name.startswith(q_lower):
-            match_field = 'name'
-            match_displayed = package.name
-        else:
-            match_field = 'title'
-            match_displayed = '%s (%s)' % (package.title, package.name)
-        result_dict = {
-            'name': package.name,
-            'title': package.title,
-            'match_field': match_field,
-            'match_displayed': match_displayed}
-        pkg_list.append(result_dict)
+    for organization in organizations or []:
+        pkg_list += is_query_in_package(query, q_lower, organization)
+    if not len(organizations):
+        pkg_list = is_query_in_package(query, q_lower)
 
     return pkg_list
 
